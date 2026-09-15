@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-apps
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gitops-platform
+spec:
+  # Git directory generator - scans for changes
+  generators:
+    - git:
+        repoURL: https://github.com/thanhhoanace/gitops-platform.git
+        revision: HEAD
+        directories:
+          # Scan 1-cluster-scoped for app folders
+          - path: 1-cluster-scoped/*
+            exclude: true  # Exclude some paths if needed
+  
+  # Template for generating Applications
+  template:
+    metadata:
+      name: '{{path.basename}}'
+      namespace: argocd
+      labels:
+        app.kubernetes.io/instance: platform
+        app.kubernetes.io/managed-by: applicationset
+    
+    spec:
+      project: platform
+      
+      source:
+        repoURL: https://github.com/thanhhoanace/gitops-platform.git
+        targetRevision: HEAD
+        path: '{{path}}/base'
+      
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path.basename}}'  # Use folder name as namespace
+      
+      syncPolicy:
+        automated:
+          prune: true    # Remove resources when deleted from Git
+          selfHeal: true # Revert manual changes
+        syncOptions:
+          - CreateNamespace=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

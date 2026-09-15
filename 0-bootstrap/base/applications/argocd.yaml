@@ -1,0 +1,25 @@
+## Context: Bootstrap Argo CD control plane via Git manifests.
+# Deploys path `1-cluster-scoped/argocd/base` from this repo into namespace `argocd` with automated sync/prune enabled.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/enable-helm: "true"
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/thanhhoanace/gitops-platform.git
+    targetRevision: HEAD
+    path: 1-cluster-scoped/argocd/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

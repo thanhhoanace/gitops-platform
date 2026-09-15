@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Project for platform and infrastructure components
+  sourceRepos:
+    - 'https://github.com/thanhhoanace/gitops-platform.git' # Chỉ cho phép repo này
+    - "*"
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*' # Team platform được deploy vào mọi namespace
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*' # Team platform được quản lý mọi tài nguyên cluster-scoped
+

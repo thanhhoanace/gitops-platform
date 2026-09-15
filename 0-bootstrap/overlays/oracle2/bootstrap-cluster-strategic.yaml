@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bootstrap-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/enable-helm: "true"
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  source:
+    repoURL: https://github.com/thanhhoanace/gitops-platform.git
+    targetRevision: master
+    path: 0-bootstrap/overlays/oracle2

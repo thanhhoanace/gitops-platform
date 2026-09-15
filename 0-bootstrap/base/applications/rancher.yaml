@@ -1,0 +1,44 @@
+## Context: Rancher control plane deployment with chart + overlay manifests.
+# Multi-source Application: installs Rancher chart (hostname/password, ingress off) into `cattle-system` and applies repo path `1-cluster-scoped/cattle-system/base`.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rancher
+  namespace: argocd
+  labels:
+    app.kubernetes.io/instance: platform
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cattle-system
+  sources:
+    - repoURL: https://releases.rancher.com/server-charts/stable
+      chart: rancher
+      targetRevision: 2.12.3 # phiên bản Rancher
+      helm:
+        releaseName: rancher
+        valuesObject:
+          hostname: rancher.acemaster.shop
+          bootstrapPassword: "REPLACE_ME"
+          ingress:
+            enabled: false
+          replicas: 1
+
+    - repoURL: https://github.com/thanhhoanace/gitops-platform.git
+      targetRevision: HEAD
+      path: 1-cluster-scoped/cattle-system/base
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

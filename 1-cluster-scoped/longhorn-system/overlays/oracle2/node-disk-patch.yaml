@@ -1,0 +1,28 @@
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: master
+  namespace: longhorn-system
+spec:
+  disks:
+    default-disk-master:
+      allowScheduling: true
+      evictionRequested: false
+      path: /var/lib/longhorn
+      storageReserved: 1073741824
+      tags: []
+---
+apiVersion: longhorn.io/v1beta2
+kind: Node
+metadata:
+  name: worker
+  namespace: longhorn-system
+spec:
+  disks:
+    default-disk-worker:
+      allowScheduling: true
+      evictionRequested: false
+      path: /var/lib/longhorn
+      storageReserved: 1073741824
+      tags: []
+    

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rancher
+  namespace: argocd
+spec:
+  sources:
+    - repoURL: https://releases.rancher.com/server-charts/stable
+      chart: rancher
+      targetRevision: 2.12.3 # phiên bản Rancher
+      helm:
+        releaseName: rancher
+        valuesObject:
+          hostname: rancher.magopo.org
+          bootstrapPassword: "REPLACE_ME"
+          ingress:
+            enabled: false
+          privateCA: false
+          replicas: 1
+    - repoURL: https://github.com/thanhhoanace/gitops-platform.git
+      targetRevision: master
+      path: 1-cluster-scoped/cattle-system/overlays/oracle2

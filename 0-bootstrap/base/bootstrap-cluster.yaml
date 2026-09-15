@@ -1,0 +1,25 @@
+## Context: One-time bootstrap app to register platform components in Argo CD.
+# Syncs `0-bootstrap/overlays/local` so Argo CD learns all base/cluster-scoped apps for this cluster.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bootstrap-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/enable-helm: "true"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/thanhhoanace/gitops-platform.git
+    targetRevision: HEAD
+    path: 0-bootstrap/overlays/local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

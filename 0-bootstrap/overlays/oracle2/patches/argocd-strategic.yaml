@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/enable-helm: "true"
+spec:
+  source:
+    targetRevision: master
+    path: 1-cluster-scoped/argocd/overlays/oracle2

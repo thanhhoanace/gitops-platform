@@ -1,0 +1,46 @@
+## Context: Deploy cert-manager controllers/CRDs via Jetstack Helm chart.
+# Uses chart v1.19.1 with `installCRDs: true` into namespace `cert-manager`; runtime config handled by `cert-manager-config`.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  labels:
+    app.kubernetes.io/instance: platform
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  source:
+    # Tuỳ chọn 1: Dùng Helm Chart (cho cert-manager controller)
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.19.1
+    helm:
+      releaseName: cert-manager
+      valuesObject:
+        installCRDs: true
+        # Tuỳ chỉnh thêm nếu cần:
+        # extraArgs:
+        #   - --dns01-recursive-nameservers-only
+        #   - --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53
+  # Tuỳ chọn 2: Nếu muốn quản lý configs từ git, thêm source khác
+  # sources:
+  #   - repoURL: <GIT_REPO_URL>
+  #     path: 1-cluster-scoped/cert-manager/base
+  #     targetRevision: main
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

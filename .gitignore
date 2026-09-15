@@ -1,0 +1,21 @@
+0-bootstrap/overlays/local/charts/
+*.crt
+*.key
+
+# Secrets and sensitive data
+.env
+.env.*
+# secrets.yaml
+# *-secret*.yaml
+# !*-sealed-secret*.yaml  # Allow sealed secrets
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+observability/*
+
+# real secrets live outside git (see README "Secrets")
+*.real.yaml
+kubeconfig*

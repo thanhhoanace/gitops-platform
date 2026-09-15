@@ -1,0 +1,12 @@
+## Context: Aggregates all platform Application manifests for Argo CD bootstrap.
+# Lists Application definitions in this folder (bootstrap, argocd, cert-manager, cert-manager-config, rancher, longhorn).
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - argocd.yaml
+  - cert-manager.yaml
+  - cert-manager-config.yaml
+  - rancher.yaml
+  - longhorn.yaml

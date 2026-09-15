@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cattle-cluster-agent
+  namespace: cattle-system
+  annotations:
+    management.cattle.io/scale-available: "2"
+spec:
+  selector:
+    matchLabels:
+      app: cattle-cluster-agent
+  template:
+    metadata:
+      labels:
+        app: cattle-cluster-agent
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/controlplane
+                operator: In
+                values:
+                - "true"
+            weight: 100
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: In
+                values:
+                - "true"
+            weight: 100
+          - preference:
+              matchExpressions:
+              - key: cattle.io/cluster-agent
+                operator: In
+                values:
+                - "true"
+            weight: 1
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: NotIn
+                values:
+                - windows
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - cattle-cluster-agent
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      serviceAccountName: cattle
+      tolerations:
+      # No taints or no controlplane nodes found, added defaults
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/controlplane
+        value: "true"
+      - effect: NoSchedule
+        key: "node-role.kubernetes.io/control-plane"
+        operator: "Exists"
+      containers:
+        - name: cluster-register
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: CATTLE_SERVER
+            value: "https://rancher.magopo.org"
+          - name: CATTLE_CA_CHECKSUM
+            value: "48f2b772e3ede286443d1512a68164151d70cfb10c8ca265ece5377843f732e1"
+          - name: CATTLE_CLUSTER
+            value: "true"
+          - name: CATTLE_K8S_MANAGED
+            value: "true"
+          - name: CATTLE_CLUSTER_REGISTRY
+            value: ""
+          - name: CATTLE_CREDENTIAL_NAME
+            value: cattle-credentials-13d99a0063
+          - name: CATTLE_SUC_APP_NAME_OVERRIDE
+            value: ""
+          - name: CATTLE_SERVER_VERSION
+            value: v2.12.3
+          - name: CATTLE_INSTALL_UUID
+            value: 2d11f4e8-aeae-4111-9274-f771270feef3
+          - name: CATTLE_INGRESS_IP_DOMAIN
+            value: sslip.io
+          - name: STRICT_VERIFY
+            value: "true"
+          image: rancher/rancher-agent:v2.12.3
+          volumeMounts:
+          - name: cattle-credentials
+            mountPath: /cattle-credentials
+            readOnly: true
+      volumes:
+      - name: cattle-credentials
+        secret:
+          secretName: cattle-credentials-13d99a0063
+          defaultMode: 320
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1

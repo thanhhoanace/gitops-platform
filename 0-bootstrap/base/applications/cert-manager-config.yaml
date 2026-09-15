@@ -1,0 +1,32 @@
+## Context: Config-only layer for cert-manager (issuers/secrets/namespace).
+# Applies `1-cluster-scoped/cert-manager/base` into namespace `cert-manager`; separates config from the controller Helm release.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+  labels:
+    app.kubernetes.io/instance: platform
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/thanhhoanace/gitops-platform.git
+    targetRevision: HEAD
+    path: 1-cluster-scoped/cert-manager/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

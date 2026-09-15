@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: applications
+  namespace: argocd
+spec:
+  description: Project for the Retail team applications
+  sourceRepos:
+    - 'https://gitlab.com/config-management4/k8s/gitops/gitops-applications.git'
+    - "*"
+  destinations:
+    - server: '*' 
+      namespace: 'app-*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  clusterResourceWhitelist: []

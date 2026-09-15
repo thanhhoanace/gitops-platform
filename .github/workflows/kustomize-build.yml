@@ -1,0 +1,17 @@
+name: kustomize build
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Build every kustomization
+        run: |
+          set -euo pipefail
+          find . -name kustomization.yaml -not -path './.git/*' \
+            | sed 's#/kustomization.yaml##' \
+            | while read -r d; do echo "== $d"; kubectl kustomize --enable-helm "$d" > /dev/null; done

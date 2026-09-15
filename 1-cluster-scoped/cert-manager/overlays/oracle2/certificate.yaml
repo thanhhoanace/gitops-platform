@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: magopo-wildcard
+  namespace: cert-manager
+spec:
+  secretName: magopo-org-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - magopo.org
+    - "*.magopo.org"

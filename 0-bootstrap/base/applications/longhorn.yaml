@@ -1,0 +1,84 @@
+## Context: Longhorn storage stack (Helm chart + custom overlay).
+# Multi-source Application: installs Longhorn chart v1.10.1 with tolerations/default settings into `longhorn-system` and syncs `1-cluster-scoped/longhorn-system/overlays/oracle`.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  labels:
+    app.kubernetes.io/instance: platform
+spec:
+  project: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: longhorn-system
+  sources:
+    # Source 1: Helm chart Longhorn
+    - chart: longhorn
+      repoURL: https://charts.longhorn.io/
+      targetRevision: v1.10.1 # đổi nếu muốn version khác
+      helm:
+        releaseName: longhorn
+        valuesObject:
+          # Workaround chính thức cho ArgoCD:
+          # disable preUpgradeChecker job để tránh lỗi Job Pending (issue đã report) 
+          preUpgradeChecker:
+            jobEnabled: false
+
+          defaultSettings:
+            defaultDataPath: /var/lib/longhorn
+            defaultReplicaCount: 1 # 2 nếu cluster >=2 node; 3 nếu prod HA
+            createDefaultDiskLabeledNodes: false  # false = tạo disk trên TẤT CẢ nodes
+            taintToleration: "node-role.kubernetes.io/control-plane:NoSchedule;node-role.kubernetes.io/master:NoSchedule"
+            
+            # Storage thresholds
+            storageMinimalAvailablePercentage: "5"
+            storageReservedPercentageForDefaultDisk: "1"
+
+          persistence:
+            defaultClass: true
+            defaultClassReplicaCount: 1        # sync với defaultReplicaCount
+            reclaimPolicy: Delete
+
+          # đảm bảo các DaemonSet/Deployment có tolerations để lên node control-plane
+          longhornManager:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Exists"
+                effect: "NoSchedule"
+              - key: "node-role.kubernetes.io/master"
+                operator: "Exists"
+                effect: "NoSchedule"
+          longhornDriver:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Exists"
+                effect: "NoSchedule"
+              - key: "node-role.kubernetes.io/master"
+                operator: "Exists"
+                effect: "NoSchedule"
+          longhornUI:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Exists"
+                effect: "NoSchedule"
+
+    # Source 2: manifests riêng của cậu (Ingress Longhorn UI, RBAC, NetworkPolicy, v.v.)
+    - path: 1-cluster-scoped/longhorn-system/overlays/oracle
+      repoURL: https://github.com/thanhhoanace/gitops-platform.git
+      targetRevision: master
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+      limit: 5
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

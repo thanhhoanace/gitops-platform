@@ -1,0 +1,129 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Người dùng đã xác thực nhưng không thuộc nhóm nào sẽ có quyền chỉ đọc.
+  policy.default: role:readonly
+
+  # Yêu cầu Keycloak gửi thông tin 'groups' trong token.
+  scopes: '[groups, email, profile]'
+
+  policy.csv: |
+    # ============================================================================
+    # 1. ĐỊNH NGHĨA CÁC VAI TRÒ (ROLES)
+    # Cú pháp: p, <role-name>, <resource>, <action>, <project>/<object>, <permission>
+    # ============================================================================
+
+    # Vai trò mặc định: Chỉ đọc trên toàn hệ thống
+    p, role:readonly, applications, get, */*, allow
+    p, role:readonly, certificates, get, *, allow
+    p, role:readonly, clusters, get, *, allow
+    p, role:readonly, repositories, get, *, allow
+    p, role:readonly, gpgkeys, get, *, allow
+
+    # Vai trò Platform Ops: Quyền vận hành rộng, nhưng bị chặn các hành động nguy hiểm.
+    p, role:platform-ops, applications, *, */*, allow
+    p, role:platform-ops, clusters, *, *, allow
+    p, role:platform-ops, repositories, *, *, allow
+    p, role:platform-ops, certificates, *, *, allow
+    p, role:platform-ops, projects, get, *, allow
+    p, role:platform-ops, exec, create, */*, deny # Chặn truy cập terminal vào pod
+
+    # Vai trò Security Auditor: Chỉ đọc để kiểm tra, bị chặn mọi hành động thay đổi.
+    p, role:security-auditor, applications, get, */*, allow
+    p, role:security-auditor, logs, get, *, allow
+    p, role:security-auditor, projects, get, *, allow
+    p, role:security-auditor, clusters, get, *, allow
+    p, role:security-auditor, repositories, get, *, allow
+    p, role:security-auditor, applications, sync, */*, deny
+    p, role:security-auditor, applications, delete, */*, deny
+    p, role:security-auditor, exec, create, */*, deny
+
+    # Vai trò SRE Monitor: Quyền xem và restart ứng dụng.
+    p, role:sre-monitor, applications, get, */*, allow
+    p, role:sre-monitor, logs, get, *, allow
+    p, role:sre-monitor, applications, action/restart, */*, allow
+    p, role:sre-monitor, applications, sync, */*, deny
+    p, role:sre-monitor, exec, create, */*, deny
+
+    # Vai trò Emergency Access: Quyền tạm thời trong tình huống khẩn cấp.
+    p, role:emergency-access, applications, *, */*, allow
+    p, role:emergency-access, logs, get, *, allow
+    p, role:emergency-access, applications, delete, */*, deny
+    p, role:emergency-access, projects, *, *, deny
+    p, role:emergency-access, clusters, *, *, deny
+
+    # Vai trò Junior Dev: Chỉ xem, không được thay đổi gì.
+    p, role:junior-dev, applications, get, */*, allow
+    p, role:junior-dev, logs, get, *, allow
+    p, role:junior-dev, applications, sync, */*, deny
+    p, role:junior-dev, applications, action/*, */*, deny
+    p, role:junior-dev, exec, create, */*, deny
+    
+    # Vai trò CI Service: Dành cho pipeline CI/CD.
+    p, role:ci-service, applications, sync, */*, allow
+    p, role:ci-service, applications, get, */*, allow
+    p, role:ci-service, applications, create, */*, allow
+    p, role:ci-service, projects, get, *, allow
+    p, role:ci-service, applications, delete, */*, deny # Chặn pipeline xóa ứng dụng
+    p, role:ci-service, exec, create, */*, deny
+
+    # Vai trò Monitoring SA: Dành cho hệ thống giám sát (Prometheus, Grafana...).
+    p, role:monitoring-sa, applications, get, */*, allow
+    p, role:monitoring-sa, clusters, get, *, allow
+    p, role:monitoring-sa, applications, sync, */*, deny
+    p, role:monitoring-sa, exec, create, */*, deny
+
+    # ============================================================================
+    # 2. GÁN CÁC NHÓM KEYCLOAK VÀO CÁC VAI TRÒ
+    # Cú pháp: g, <keycloak-group-name>, <role-name>
+    # Tên nhóm ở đây phải khớp chính xác với tên nhóm trong Keycloak.
+    # ============================================================================
+
+    # --- Platform & Cross-Functional Teams ---
+    g, platform-admins, role:admin # role:admin là vai trò tích hợp sẵn, có toàn quyền.
+    g, platform-ops, role:platform-ops
+    g, security-team, role:security-auditor
+    g, sre-team, role:sre-monitor
+    g, emergency-responders, role:emergency-access
+    g, junior-developers, role:junior-dev
+
+    # --- Team-Specific Roles (sử dụng Project Roles) ---
+    # Cú pháp: proj:<project-name>:<built-in-project-role>
+    # Các vai trò tích hợp: readonly, sync, admin
+
+    # BaaS Team
+    g, devs-baas, proj:baas:readonly
+    g, ops-baas, proj:baas:sync
+    g, leads-baas, proj:baas:admin
+
+    # Corp Team
+    g, devs-corp, proj:corp:readonly
+    g, ops-corp, proj:corp:sync
+    g, leads-corp, proj:corp:admin
+
+    # Retail Team
+    g, devs-retail, proj:retail:readonly
+    g, ops-retail, proj:retail:sync
+    g, leads-retail, proj:retail:admin
+
+    # Transfer Team
+    g, devs-transfer, proj:transfer:readonly
+    g, ops-transfer, proj:transfer:sync
+    g, leads-transfer, proj:transfer:admin
+
+    # Payment Team
+    g, devs-payment, proj:payment:readonly
+    g, ops-payment, proj:payment:sync
+    g, leads-payment, proj:payment:admin
+
+    # --- Service Accounts (dùng cho token) ---
+    # Tên ở đây là 'subject' của token, không phải nhóm người dùng.
+    g, gitlab-ci, role:ci-service
+    g, github-actions, role:ci-service
+    g, monitoring-sa, role:monitoring-sa

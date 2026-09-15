@@ -1,0 +1,11 @@
+## Kustomization: repositories
+# Tập hợp Kubernetes Secrets (git credentials) và Argo CD Repository resources
+# Được apply trước các AppProject và Application để đảm bảo auth có sẵn
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - repositories-secret.yaml

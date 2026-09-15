@@ -1,0 +1,159 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # ArgoCD server URL - endpoint cho UI và CLI
+  url: https://argocd-local.hnt1.shop
+  
+  # Application instance label - unique identifier cho applications
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  
+  # Server properties
+  server.insecure: "false"                   # Enforce HTTPS
+  server.grpc.web: "true"                    # Enable gRPC-Web cho web UI
+  server.disable.auth: "false"               # Authentication required
+  server.enable.proxy.extension: "true"      # Enable extension proxy
+  
+  # Git/Sync configuration
+  timeout.reconciliation: "180s"              # Default sync timeout
+  timeout.hard.reconciliation: "0s"           # Hard timeout (0 = no limit)
+  timeout.sync: 600s
+  users.anonymous.enabled: "false"
+
+  # Repository credentials caching
+  reposerver.parallelism.limit: "20"          # Max parallel operations
+  
+  # Enhanced application management
+  application.namespaces: "argocd,argocd-*"   # Namespaces where apps can be created
+  
+  # OIDC configuration với Keycloak/Auth0
+  # oidc.config: |
+  #   name: Corporate SSO
+  #   issuer: https://auth.example.com/realms/gitops
+  #   clientId: argocd-rke2-dev
+  #   clientSecret: $oidc.keycloak.clientSecret
+  #   requestedScopes: ["openid", "profile", "email", "groups"]
+  #   requestedIDTokenClaims: {"groups": {"essential": true}}
+  #   # Group claims mapping
+  #   skipClientIDCheck: false
+    
+  # Anonymous access (chỉ readonly cho monitoring)  
+  users.anonymous.enabled: "true"
+  users.anonymous.policies: |
+    p, role:readonly, applications, get, */*, allow
+    
+  # Resource customizations - custom health checks
+  resource.customizations: |
+    networking.k8s.io/Ingress:
+      health.lua: |
+        hs = {}
+        hs.status = "Healthy"
+        return hs
+    argoproj.io/Rollout:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.phase == "Healthy" then
+            hs.status = "Healthy"
+            hs.message = "Rollout is healthy"
+          end
+        end
+        return hs
+    bitnami.com/SealedSecret:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.conditions ~= nil then
+            for i, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Synced" and condition.status == "True" then
+                hs.status = "Healthy"
+                hs.message = "SealedSecret synced"
+                return hs
+              end
+            end
+          end
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for SealedSecret sync"
+        return hs
+        
+  # Resource exclusions - không track resources này
+  resource.exclusions: |
+    - apiGroups:
+      - tekton.dev
+      clusters:
+      - "*"
+      kinds:
+      - TaskRun
+      - PipelineRun
+    - apiGroups:
+      - ""
+      kinds:
+      - Event
+    - apiGroups:
+      - metrics.k8s.io
+      kinds:
+      - "*"
+      
+  # Repository configuration templates
+  repositories: |
+    - type: git
+      url: https://github.com/company/gitops-platform.git
+      name: platform-repo
+      # Credentials template sẽ được applied
+    - type: git
+      url: https://github.com/company/gitops-team-baas.git
+      name: baas-repo
+    - type: git
+      url: https://github.com/company/gitops-team-corp.git
+      name: corp-repo
+    - type: git
+      url: https://github.com/company/gitops-team-retail.git
+      name: retail-repo
+    # - type: git  
+    #   url: https://github.com/company/gitops-team-transfer.git
+    #   name: transfer-repo
+    # - type: git
+    #   url: https://github.com/company/gitops-team-payment.git
+    #   name: payment-repo
+      
+  # Dex configuration (nếu không dùng external OIDC)
+  dex.config: |
+    connectors:
+    - type: ldap
+      name: Corporate LDAP
+      id: ldap
+      config:
+        host: ldap.example.com:636
+        insecureNoSSL: false
+        insecureSkipVerify: false
+        bindDN: cn=argocd,ou=service-accounts,dc=example,dc=com
+        bindPW: $dex.ldap.bindPW
+        usernamePrompt: Email Address
+        userSearch:
+          baseDN: ou=users,dc=example,dc=com
+          filter: "(objectClass=person)"
+          username: mail
+          idAttr: DN
+          emailAttr: mail
+          nameAttr: cn
+        groupSearch:
+          baseDN: ou=groups,dc=example,dc=com
+          filter: "(objectClass=groupOfNames)"
+          userMatchers:
+          - userAttr: DN
+            groupAttr: member
+          nameAttr: cn
+            
+  # Notifications configuration
+  notifications.enabled: "true"
+  
+  # Banner cho environment identification
+  ui.bannercontent: "🚧 RKE2 Development Environment 🚧"
+  ui.bannerurl: "https://docs.example.com/gitops"
+  ui.bannerpermanent: "true"

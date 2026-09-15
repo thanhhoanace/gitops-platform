@@ -1,0 +1,14 @@
+image: 
+  name: thanhhoan062/k8s-tools-helm:latest
+  entrypoint: [""]
+
+stages:
+  - build
+
+build-kustomize:
+  stage: build
+  script:
+    - 'if ! command -v helm >/dev/null 2>&1; then echo "helm not found, installing helm..." && curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | sh || true; fi'
+    - find . -name "kustomization.yaml" | awk '!/^\.\/(catalog|node_modules|.git|refs)/ { print; }' | awk '!/\/(upstream)/ { print; }' | sed s/kustomization.yaml//g | xargs -t -n 1 sh -c 'kustomize build --enable-helm $0 || exit 255'
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
